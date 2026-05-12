@@ -1,0 +1,6 @@
+{
+  "/dashboard/page": "app/dashboard/page.js",
+  "/page": "app/page.js",
+  "/api/packages/route": "app/api/packages/route.js",
+  "/x86_64/page": "app/x86_64/page.js"
+}
