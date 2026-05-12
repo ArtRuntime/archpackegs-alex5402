@@ -24,6 +24,32 @@ This Custom Arch Linux Mirror is an ultra-modern, automated system designed to h
 
 ## Getting Started
 
+## Arch Linux Client Configuration
+
+To use your custom mirror on any Arch Linux machine, you just need to edit your pacman configuration file!
+
+1. Open your terminal and edit the configuration file with root privileges:
+   ```bash
+   sudo nano /etc/pacman.conf
+   ```
+
+2. Scroll all the way down to the very bottom of the file and append your custom repository. Because your database files are named `alex-repo.db`, the repository name **must** be `[alex-repo]`.
+
+   Add these exact lines:
+   ```ini
+   [alex-repo]
+   SigLevel = Never
+   Server = https://archpackegs-alex5402.vercel.app/$arch
+   ```
+   > **Note:** We set `SigLevel = Never` for testing. Once you export and distribute your GPG Public Key to your machines, you can change this to enforce strict signature checking (`Required DatabaseOptional`).
+
+3. Save the file. Now, just sync your databases like you normally would:
+   ```bash
+   sudo pacman -Sy
+   sudo pacman -S android-studio-alex
+   ```
+
+
 ### Prerequisites
 - Node.js (v18+)
 - MongoDB Cluster (e.g., MongoDB Atlas)
@@ -58,18 +84,6 @@ You can easily self-host the Next.js control plane using the provided Dockerfile
 docker build -t nexpanel-arch .
 docker run -p 3000:3000 -e MONGODB_URI="your_uri" -e DB_NAME="your_db_name" nexpanel-arch
 ```
-
-## Arch Linux Client Configuration
-
-To use the mirror on any Arch Linux machine, append the following to the end of your `/etc/pacman.conf`:
-
-```ini
-[alex-repo]
-SigLevel = Optional TrustAll
-Server = https://your-deployment-domain.com/x86_64
-```
-
-> **Note:** If you are actively signing your packages with GPG in your GitHub Actions, you can enforce strict signature checking by setting `SigLevel = Required DatabaseOptional`.
 
 ## Security
 
