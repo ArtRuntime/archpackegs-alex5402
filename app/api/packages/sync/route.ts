@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     // Fetch latest release from GitHub API
     const ghResponse = await fetch(`https://api.github.com/repos/${pkg.githubRepo}/releases/latest`, {
       headers: {
-        'User-Agent': 'NexPanel-Arch-Mirror',
+        'User-Agent': 'Custom-Arch-Mirror',
         'Accept': 'application/vnd.github.v3+json'
       }
     });

@@ -1,4 +1,4 @@
-<h1 align="center">NexPanel Arch Linux Mirror 🐉</h1>
+<h1 align="center">Custom Arch Linux Mirror 🐉</h1>
 
 <p align="center">
   <strong>A fully automated, self-hosted, serverless Arch Linux package repository and management dashboard.</strong>
@@ -6,7 +6,7 @@
 
 ## Overview
 
-NexPanel Arch is an ultra-modern, automated system designed to host and manage custom Arch Linux packages (AUR). Instead of relying on traditional, stateful package servers, this architecture entirely decouples the build process from the hosting process using **Next.js**, **MongoDB**, and **GitHub Actions/Releases**.
+This Custom Arch Linux Mirror is an ultra-modern, automated system designed to host and manage custom Arch Linux packages (AUR). Instead of relying on traditional, stateful package servers, this architecture entirely decouples the build process from the hosting process using **Next.js**, **MongoDB**, and **GitHub Actions/Releases**.
 
 ### 🌟 Key Features
 

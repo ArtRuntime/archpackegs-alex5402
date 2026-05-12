@@ -23,7 +23,7 @@ export default async function RepoIndex() {
     <div className="min-h-screen bg-[#1e1e2e] text-[#cdd6f4] font-mono p-8 selection:bg-[#f5c2e7] selection:text-[#1e1e2e]">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl font-bold text-[#cba6f7] mb-2 flex items-center gap-4">
-          NexPanel main node - Stormwing 🐉
+          Custom Arch Linux Mirror - Stormwing 🐉
         </h1>
         <p className="text-[#a6adc8] mb-8">Index of /repos/alex-repo/x86_64/</p>
 
@@ -108,7 +108,7 @@ export default async function RepoIndex() {
             </tbody>
           </table>
           <div className="px-6 py-4 bg-[#11111b] border-t border-[#313244] text-xs text-[#a6adc8] flex justify-between">
-            <span>NexPanel Arch Mirror System</span>
+            <span>Custom Arch Linux Mirror</span>
             <span>{packages.length * 2 + 4} Files Indexed</span>
           </div>
         </div>

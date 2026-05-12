@@ -129,7 +129,7 @@ export default function Dashboard() {
               <div className="bg-accent/20 p-2 rounded-lg">
                 <Package className="w-6 h-6 text-accent" />
               </div>
-              <span className="font-semibold text-xl tracking-tight">NexPanel Arch</span>
+              <span className="font-semibold text-xl tracking-tight">Custom Arch Linux Mirror</span>
             </div>
             <div className="flex items-center gap-4">
               <button onClick={() => setIsSettingsOpen(true)} className="text-slate-400 hover:text-white transition-colors">
