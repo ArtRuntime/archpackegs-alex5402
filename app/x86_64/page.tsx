@@ -86,11 +86,14 @@ export default async function RepoIndex() {
 
                 let pkgSizeStr = '-';
                 let sigSizeStr = '-';
+                let pkgAsset: any = null;
+                let sigAsset: any = null;
+
                 if (pkg.assets && Array.isArray(pkg.assets)) {
-                  const pkgAsset = pkg.assets.find((a: any) => a.name === pkgName);
+                  pkgAsset = pkg.assets.find((a: any) => a.name === pkgName);
                   if (pkgAsset) pkgSizeStr = formatBytes(pkgAsset.size);
                   
-                  const sigAsset = pkg.assets.find((a: any) => a.name === sigName);
+                  sigAsset = pkg.assets.find((a: any) => a.name === sigName);
                   if (sigAsset) sigSizeStr = formatBytes(sigAsset.size);
                 }
 
@@ -106,16 +109,18 @@ export default async function RepoIndex() {
                       <td className="px-6 py-3 text-right text-[#a6adc8]">{pkgSizeStr}</td>
                       <td className="px-6 py-3 text-[#a6adc8]">File</td>
                     </tr>
-                    <tr key={sigName} className="hover:bg-[#313244]/30 transition-colors">
-                      <td className="px-6 py-3">
-                        <Link href={`/x86_64/${sigName}`} className="text-[#89b4fa] hover:underline decoration-[#89b4fa]/50 underline-offset-4">
-                          {sigName}
-                        </Link>
-                      </td>
-                      <td className="px-6 py-3 text-[#a6adc8]">{date}</td>
-                      <td className="px-6 py-3 text-right text-[#a6adc8]">{sigSizeStr}</td>
-                      <td className="px-6 py-3 text-[#a6adc8]">File</td>
-                    </tr>
+                    {sigAsset && (
+                      <tr key={sigName} className="hover:bg-[#313244]/30 transition-colors">
+                        <td className="px-6 py-3">
+                          <Link href={`/x86_64/${sigName}`} className="text-[#89b4fa] hover:underline decoration-[#89b4fa]/50 underline-offset-4">
+                            {sigName}
+                          </Link>
+                        </td>
+                        <td className="px-6 py-3 text-[#a6adc8]">{date}</td>
+                        <td className="px-6 py-3 text-right text-[#a6adc8]">{sigSizeStr}</td>
+                        <td className="px-6 py-3 text-[#a6adc8]">File</td>
+                      </tr>
+                    )}
                   </>
                 );
               })}
