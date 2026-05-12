@@ -50,18 +50,32 @@ export default async function RepoIndex() {
               </tr>
 
               {/* Core Database Files */}
-              {['alex-repo.db', 'alex-repo.db.tar.gz', 'alex-repo.files', 'alex-repo.files.tar.gz'].map((dbFile) => (
-                <tr key={dbFile} className="hover:bg-[#313244]/30 transition-colors">
-                  <td className="px-6 py-3">
-                    <Link href={`/x86_64/${dbFile}`} className="text-[#89b4fa] hover:underline decoration-[#89b4fa]/50 underline-offset-4">
-                      {dbFile}
-                    </Link>
-                  </td>
-                  <td className="px-6 py-3 text-[#a6adc8]">Always Latest</td>
-                  <td className="px-6 py-3 text-right text-[#a6adc8]">-</td>
-                  <td className="px-6 py-3 text-[#a6adc8]">File</td>
-                </tr>
-              ))}
+              {['alex-repo.db', 'alex-repo.db.tar.gz', 'alex-repo.files', 'alex-repo.files.tar.gz'].map((dbFile) => {
+                let dbSizeStr = '-';
+                // Find the size from the first package that has this asset
+                for (const pkg of packages) {
+                  if (pkg.assets && Array.isArray(pkg.assets)) {
+                    const dbAsset = pkg.assets.find((a: any) => a.name === dbFile);
+                    if (dbAsset) {
+                      dbSizeStr = formatBytes(dbAsset.size);
+                      break;
+                    }
+                  }
+                }
+
+                return (
+                  <tr key={dbFile} className="hover:bg-[#313244]/30 transition-colors">
+                    <td className="px-6 py-3">
+                      <Link href={`/x86_64/${dbFile}`} className="text-[#89b4fa] hover:underline decoration-[#89b4fa]/50 underline-offset-4">
+                        {dbFile}
+                      </Link>
+                    </td>
+                    <td className="px-6 py-3 text-[#a6adc8]">Always Latest</td>
+                    <td className="px-6 py-3 text-right text-[#a6adc8]">{dbSizeStr}</td>
+                    <td className="px-6 py-3 text-[#a6adc8]">File</td>
+                  </tr>
+                );
+              })}
 
               {/* Dynamic Package Files from Database */}
               {packages.map((pkg) => {

@@ -47,24 +47,27 @@ export async function POST(req: Request) {
       newVersion = newVersion.substring(1);
     }
 
-    // Extract asset metadata
-    let assets = (releaseData.assets || []).map((asset: any) => ({
-      name: asset.name,
-      size: asset.size
-    }));
+    // Extract asset metadata from GitHub API
+    let assetsMap = new Map();
+    (releaseData.assets || []).forEach((asset: any) => {
+      assetsMap.set(asset.name, asset.size);
+    });
 
-    // Fallback: If GitHub API failed to provide assets, parse the markdown table in the release body
-    if (assets.length === 0 && releaseData.body) {
+    // Always parse the markdown table as a fallback for any individual missing files
+    if (releaseData.body) {
       const bodyText = releaseData.body;
       const regex = /\|\s*`([^`]+)`\s*\|\s*(\d+)\s*\|\s*`[^`]+`\s*\|/g;
       let match;
       while ((match = regex.exec(bodyText)) !== null) {
-        assets.push({
-          name: match[1],
-          size: parseInt(match[2], 10)
-        });
+        const name = match[1];
+        const size = parseInt(match[2], 10);
+        if (!assetsMap.has(name)) {
+          assetsMap.set(name, size);
+        }
       }
     }
+
+    const assets = Array.from(assetsMap.entries()).map(([name, size]) => ({ name, size }));
 
     // Update the package in MongoDB
     await db.collection('packages').updateOne(

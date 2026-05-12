@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Package, Plus, Activity, Github, Settings, LogOut, CheckCircle2, Clock, Lock, User, RefreshCw } from 'lucide-react';
+import { Package, Plus, Activity, Github, Settings, LogOut, CheckCircle2, Clock, Lock, User, RefreshCw, Key, Copy } from 'lucide-react';
 
 type Pkg = {
   _id: string;
@@ -27,6 +27,45 @@ export default function Dashboard() {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsError, setSettingsError] = useState('');
   const [settingsSuccess, setSettingsSuccess] = useState('');
+
+  // API Key State
+  const [apiKeyData, setApiKeyData] = useState<{hasKey: boolean, maskedKey: string | null}>({hasKey: false, maskedKey: null});
+  const [showFullApiKey, setShowFullApiKey] = useState<string | null>(null);
+  const [apiKeyLoading, setApiKeyLoading] = useState(false);
+
+  const openSettings = async () => {
+    setIsSettingsOpen(true);
+    try {
+      const res = await fetch('/api/auth/apikey');
+      const data = await res.json();
+      if (data.success) {
+        setApiKeyData({ hasKey: data.hasKey, maskedKey: data.maskedKey });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleGenerateApiKey = async () => {
+    if (apiKeyData.hasKey && !confirm('Generating a new API key will instantly invalidate the old one! Make sure to update your GitHub Action secrets. Continue?')) {
+      return;
+    }
+    setApiKeyLoading(true);
+    try {
+      const res = await fetch('/api/auth/apikey', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setShowFullApiKey(data.apiKey);
+        setApiKeyData({ hasKey: true, maskedKey: `************************${data.apiKey.slice(-8)}` });
+      } else {
+        alert(data.error || 'Failed to generate API Key');
+      }
+    } catch (e) {
+      alert('Network error generating API Key');
+    } finally {
+      setApiKeyLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetch('/api/packages')
@@ -132,7 +171,7 @@ export default function Dashboard() {
               <span className="font-semibold text-xl tracking-tight">Custom Arch Linux Mirror</span>
             </div>
             <div className="flex items-center gap-4">
-              <button onClick={() => setIsSettingsOpen(true)} className="text-slate-400 hover:text-white transition-colors">
+              <button onClick={openSettings} className="text-slate-400 hover:text-white transition-colors">
                 <Settings className="w-5 h-5" />
               </button>
               <div className="h-8 w-px bg-white/10"></div>
@@ -339,6 +378,64 @@ export default function Dashboard() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <Key className="w-4 h-4 text-slate-500" />
+                  Webhook API Key (For GitHub Actions)
+                </label>
+                <div className="bg-background border border-white/10 rounded-lg p-3">
+                  {showFullApiKey ? (
+                    <div className="flex flex-col gap-2">
+                      <div className="text-xs text-amber-400 font-medium bg-amber-500/10 p-2 rounded border border-amber-500/20">
+                        Please copy this key immediately! It will not be shown again.
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs text-white bg-[#1e1e2e] p-2 rounded flex-1 overflow-x-auto select-all">
+                          {showFullApiKey}
+                        </code>
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            navigator.clipboard.writeText(showFullApiKey);
+                            alert('Copied to clipboard!');
+                          }}
+                          className="bg-white/10 hover:bg-white/20 p-2 rounded text-white transition-colors"
+                          title="Copy to clipboard"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : apiKeyData.hasKey ? (
+                    <div className="flex items-center justify-between">
+                      <code className="text-xs text-slate-400 font-mono tracking-widest">{apiKeyData.maskedKey}</code>
+                      <button 
+                        type="button" 
+                        onClick={handleGenerateApiKey}
+                        disabled={apiKeyLoading}
+                        className="text-xs text-rose-400 hover:text-rose-300 transition-colors disabled:opacity-50"
+                      >
+                        {apiKeyLoading ? 'Generating...' : 'Revoke & Replace'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center py-2 text-center">
+                      <p className="text-xs text-slate-400 mb-3">No API Key generated yet.</p>
+                      <button 
+                        type="button"
+                        onClick={handleGenerateApiKey}
+                        disabled={apiKeyLoading}
+                        className="bg-accent/20 hover:bg-accent/30 text-accent px-3 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50"
+                      >
+                        {apiKeyLoading ? 'Generating...' : 'Generate API Key'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-white/5"></div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <User className="w-4 h-4 text-slate-500" />
                   New Username (Optional)
                 </label>
@@ -375,6 +472,7 @@ export default function Dashboard() {
                     setCurrentPassword('');
                     setNewUsername('');
                     setNewPassword('');
+                    setShowFullApiKey(null);
                   }}
                   className="flex-1 bg-white/5 hover:bg-white/10 text-white px-4 py-2.5 rounded-lg font-medium transition-colors"
                 >
