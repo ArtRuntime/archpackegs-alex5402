@@ -38,8 +38,7 @@ To use your custom mirror on any Arch Linux machine, you just need to edit your 
    Add these exact lines:
    ```ini
    [alex-repo]
-   SigLevel = Never
-   Server = https://archpackegs-alex5402.vercel.app/$arch
+   Server  = https://archpackegs-alex5402.vercel.app/$arch
    ```
    > **Note:** We set `SigLevel = Never` for testing. Once you export and distribute your GPG Public Key to your machines, you can change this to enforce strict signature checking (`Required DatabaseOptional`).
 

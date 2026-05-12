@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Package, Plus, Activity, Github, Settings, LogOut, CheckCircle2, Clock, Lock, User, RefreshCw, Key, Copy } from 'lucide-react';
+import { Package, Plus, Activity, Github, Settings, LogOut, CheckCircle2, Clock, Lock, User, RefreshCw, Key, Copy, AlertTriangle, XCircle } from 'lucide-react';
 
 type Pkg = {
   _id: string;
@@ -19,6 +19,10 @@ export default function Dashboard() {
   const [newPkgRepo, setNewPkgRepo] = useState('');
   const [syncingId, setSyncingId] = useState<string | null>(null);
 
+  // Custom Modals State
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
+  const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'error' | 'success' } | null>(null);
+
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -29,7 +33,7 @@ export default function Dashboard() {
   const [settingsSuccess, setSettingsSuccess] = useState('');
 
   // API Key State
-  const [apiKeyData, setApiKeyData] = useState<{hasKey: boolean, maskedKey: string | null}>({hasKey: false, maskedKey: null});
+  const [apiKeyData, setApiKeyData] = useState<{hasKey: boolean, maskedKey: string | null, fullKey: string | null}>({hasKey: false, maskedKey: null, fullKey: null});
   const [showFullApiKey, setShowFullApiKey] = useState<string | null>(null);
   const [apiKeyLoading, setApiKeyLoading] = useState(false);
 
@@ -39,29 +43,42 @@ export default function Dashboard() {
       const res = await fetch('/api/auth/apikey');
       const data = await res.json();
       if (data.success) {
-        setApiKeyData({ hasKey: data.hasKey, maskedKey: data.maskedKey });
+        setApiKeyData({ hasKey: data.hasKey, maskedKey: data.maskedKey, fullKey: data.fullKey });
       }
     } catch (e) {
       console.error(e);
     }
   };
 
-  const handleGenerateApiKey = async () => {
-    if (apiKeyData.hasKey && !confirm('Generating a new API key will instantly invalidate the old one! Make sure to update your GitHub Action secrets. Continue?')) {
-      return;
+  const handleGenerateApiKeyRequest = () => {
+    if (apiKeyData.hasKey) {
+      setConfirmModal({
+        isOpen: true,
+        title: 'Revoke Existing API Key?',
+        message: 'Generating a new API key will instantly invalidate the old one! Make sure to update your GitHub Action secrets. Continue?',
+        onConfirm: () => {
+          setConfirmModal(null);
+          executeGenerateApiKey();
+        }
+      });
+    } else {
+      executeGenerateApiKey();
     }
+  };
+
+  const executeGenerateApiKey = async () => {
     setApiKeyLoading(true);
     try {
       const res = await fetch('/api/auth/apikey', { method: 'POST' });
       const data = await res.json();
       if (data.success) {
         setShowFullApiKey(data.apiKey);
-        setApiKeyData({ hasKey: true, maskedKey: `************************${data.apiKey.slice(-8)}` });
+        setApiKeyData({ hasKey: true, maskedKey: `************************${data.apiKey.slice(-8)}`, fullKey: data.apiKey });
       } else {
-        alert(data.error || 'Failed to generate API Key');
+        setAlertModal({ isOpen: true, title: 'Action Failed', message: data.error || 'Failed to generate API Key', type: 'error' });
       }
     } catch (e) {
-      alert('Network error generating API Key');
+      setAlertModal({ isOpen: true, title: 'Network Error', message: 'A network error occurred while generating the API Key.', type: 'error' });
     } finally {
       setApiKeyLoading(false);
     }
@@ -90,8 +107,9 @@ export default function Dashboard() {
       setIsModalOpen(false);
       setNewPkgName('');
       setNewPkgRepo('');
+      setAlertModal({ isOpen: true, title: 'Success', message: 'Package added successfully!', type: 'success' });
     } else {
-      alert(data.error);
+      setAlertModal({ isOpen: true, title: 'Error', message: data.error || 'Failed to add package.', type: 'error' });
     }
   };
 
@@ -112,10 +130,10 @@ export default function Dashboard() {
             : p
         ));
       } else {
-        alert(data.error || 'Failed to sync with GitHub');
+        setAlertModal({ isOpen: true, title: 'Sync Failed', message: data.error || 'Failed to sync with GitHub.', type: 'error' });
       }
     } catch (err) {
-      alert('A network error occurred while syncing.');
+      setAlertModal({ isOpen: true, title: 'Network Error', message: 'A network error occurred while syncing.', type: 'error' });
     } finally {
       setSyncingId(null);
     }
@@ -161,6 +179,62 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background text-slate-200">
+      {/* Custom Alert Modal */}
+      {alertModal?.isOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-surface border border-white/10 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 flex flex-col items-center text-center">
+              {alertModal.type === 'error' ? (
+                <XCircle className="w-12 h-12 text-rose-500 mb-4" />
+              ) : (
+                <CheckCircle2 className="w-12 h-12 text-emerald-500 mb-4" />
+              )}
+              <h3 className="text-xl font-semibold text-white mb-2">{alertModal.title}</h3>
+              <p className="text-slate-400 text-sm mb-6">{alertModal.message}</p>
+              <button
+                onClick={() => setAlertModal(null)}
+                className="w-full bg-white/10 hover:bg-white/20 text-white px-4 py-2.5 rounded-lg font-medium transition-colors"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Confirm Modal */}
+      {confirmModal?.isOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-surface border border-white/10 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-rose-500/20 p-2 rounded-full">
+                  <AlertTriangle className="w-6 h-6 text-rose-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-white">{confirmModal.title}</h3>
+              </div>
+              <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+                {confirmModal.message}
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmModal(null)}
+                  className="flex-1 bg-white/5 hover:bg-white/10 text-white px-4 py-2.5 rounded-lg font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmModal.onConfirm}
+                  className="flex-1 bg-rose-500 hover:bg-rose-600 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-lg shadow-rose-500/25"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <nav className="border-b border-white/10 bg-surface/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
@@ -337,7 +411,7 @@ export default function Dashboard() {
 
       {/* Settings Modal */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center p-4">
           <div className="bg-surface border border-white/10 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-white/5">
               <h3 className="text-xl font-semibold flex items-center gap-2">
@@ -348,7 +422,8 @@ export default function Dashboard() {
             </div>
             <form onSubmit={handleUpdateCredentials} className="p-6 space-y-4">
               {settingsError && (
-                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm p-3 rounded-xl">
+                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm p-3 rounded-xl flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
                   {settingsError}
                 </div>
               )}
@@ -395,7 +470,7 @@ export default function Dashboard() {
                           type="button" 
                           onClick={() => {
                             navigator.clipboard.writeText(showFullApiKey);
-                            alert('Copied to clipboard!');
+                            setAlertModal({ isOpen: true, title: 'Copied', message: 'API Key copied to clipboard!', type: 'success' });
                           }}
                           className="bg-white/10 hover:bg-white/20 p-2 rounded text-white transition-colors"
                           title="Copy to clipboard"
@@ -406,10 +481,25 @@ export default function Dashboard() {
                     </div>
                   ) : apiKeyData.hasKey ? (
                     <div className="flex items-center justify-between">
-                      <code className="text-xs text-slate-400 font-mono tracking-widest">{apiKeyData.maskedKey}</code>
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs text-slate-400 font-mono tracking-widest">{apiKeyData.maskedKey}</code>
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            if (apiKeyData.fullKey) {
+                              navigator.clipboard.writeText(apiKeyData.fullKey);
+                              setAlertModal({ isOpen: true, title: 'Copied', message: 'API Key copied to clipboard!', type: 'success' });
+                            }
+                          }}
+                          className="text-slate-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
+                          title="Copy existing key to clipboard"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                       <button 
                         type="button" 
-                        onClick={handleGenerateApiKey}
+                        onClick={handleGenerateApiKeyRequest}
                         disabled={apiKeyLoading}
                         className="text-xs text-rose-400 hover:text-rose-300 transition-colors disabled:opacity-50"
                       >
@@ -421,7 +511,7 @@ export default function Dashboard() {
                       <p className="text-xs text-slate-400 mb-3">No API Key generated yet.</p>
                       <button 
                         type="button"
-                        onClick={handleGenerateApiKey}
+                        onClick={handleGenerateApiKeyRequest}
                         disabled={apiKeyLoading}
                         className="bg-accent/20 hover:bg-accent/30 text-accent px-3 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50"
                       >

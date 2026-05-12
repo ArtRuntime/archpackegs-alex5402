@@ -25,7 +25,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ 
       success: true, 
       hasKey: !!apiKey,
-      maskedKey 
+      maskedKey,
+      fullKey: apiKey
     });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to fetch API key' }, { status: 500 });
