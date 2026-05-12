@@ -30,6 +30,9 @@ export async function POST(req: Request) {
     });
 
     if (!ghResponse.ok) {
+      if (ghResponse.status === 404) {
+        return NextResponse.json({ success: true, message: 'No release found yet. Waiting for first build.' });
+      }
       return NextResponse.json({ success: false, error: `Failed to contact GitHub API for ${masterRepo}.` }, { status: 500 });
     }
 
