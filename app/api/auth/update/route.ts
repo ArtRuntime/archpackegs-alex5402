@@ -6,7 +6,7 @@ import { cookies } from 'next/headers';
 
 export async function POST(req: Request) {
   try {
-    const { currentPassword, newUsername, newPassword } = await req.json();
+    const { currentPassword, newUsername, newPassword, newMasterRepo } = await req.json();
 
     if (!currentPassword) {
       return NextResponse.json({ error: 'Current password is required' }, { status: 400 });
@@ -47,6 +47,9 @@ export async function POST(req: Request) {
     if (newPassword && newPassword.trim() !== '') {
       const salt = bcrypt.genSaltSync(10);
       updates.password = bcrypt.hashSync(newPassword.trim(), salt);
+    }
+    if (newMasterRepo !== undefined) {
+      updates.masterRepo = newMasterRepo.trim();
     }
 
     if (Object.keys(updates).length > 0) {

@@ -24,29 +24,49 @@ This Custom Arch Linux Mirror is an ultra-modern, automated system designed to h
 
 ## Getting Started
 
-## Arch Linux Client Configuration
+## Setup Instructions
 
-To use your custom mirror on any Arch Linux machine, you just need to edit your pacman configuration file!
+### 1. Import the GPG Key (Required for Security)
 
-1. Open your terminal and edit the configuration file with root privileges:
-   ```bash
-   sudo nano /etc/pacman.conf
-   ```
+Because the repository is cryptographically signed, Pacman needs to know your public key to verify the packages. Since your key is private and not on a public keyserver, you must add it to Pacman's keyring manually:
 
-2. Scroll all the way down to the very bottom of the file and append your custom repository. Because your database files are named `alex-repo.db`, the repository name **must** be `[alex-repo]`.
+```bash
+# 1. Export your public key from your user's GPG vault
+gpg --export 85973202A05F1B3C44B2405738E33F18B009C9A7 > alex-repo.pub
 
-   Add these exact lines:
-   ```ini
-   [alex-repo]
-   Server  = https://archpackegs-alex5402.vercel.app/$arch
-   ```
-   > **Note:** We set `SigLevel = Never` for testing. Once you export and distribute your GPG Public Key to your machines, you can change this to enforce strict signature checking (`Required DatabaseOptional`).
+# 2. Add the key to Pacman's root keyring
+sudo pacman-key --add alex-repo.pub
 
-3. Save the file. Now, just sync your databases like you normally would:
-   ```bash
-   sudo pacman -Sy
-   sudo pacman -S android-studio-alex
-   ```
+# 3. Locally sign the key to tell Pacman it is trusted
+sudo pacman-key --lsign-key 85973202A05F1B3C44B2405738E33F18B009C9A7
+```
+
+### 2. Configure Pacman
+
+Open `/etc/pacman.conf` in your favorite editor with sudo privileges:
+```bash
+sudo nano /etc/pacman.conf
+```
+
+Add the following block to the **bottom** of the file:
+
+```ini
+[alex-repo]
+SigLevel = Required DatabaseOptional
+Server = https://archpackegs-alex5402.vercel.app/api/download?file=$repo.db.tar.gz
+```
+
+### 3. Sync and Install
+
+Finally, synchronize the databases and install packages normally!
+
+```bash
+# Sync databases
+sudo pacman -Sy
+
+# Install a tracked package
+sudo pacman -S android-studio-alex
+```
 
 
 ### Prerequisites

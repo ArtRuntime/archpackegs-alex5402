@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [newMasterRepo, setNewMasterRepo] = useState('');
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsError, setSettingsError] = useState('');
   const [settingsSuccess, setSettingsSuccess] = useState('');
@@ -44,6 +45,11 @@ export default function Dashboard() {
       const data = await res.json();
       if (data.success) {
         setApiKeyData({ hasKey: data.hasKey, maskedKey: data.maskedKey, fullKey: data.fullKey });
+        if (data.masterRepo) {
+          setNewMasterRepo(data.masterRepo);
+        } else {
+          setNewMasterRepo('ArtRuntime/alex-aur-packages');
+        }
       }
     } catch (e) {
       console.error(e);
@@ -149,7 +155,7 @@ export default function Dashboard() {
       const res = await fetch('/api/auth/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newUsername, newPassword }),
+        body: JSON.stringify({ currentPassword, newUsername, newPassword, newMasterRepo }),
       });
       const data = await res.json();
       
@@ -578,6 +584,25 @@ export default function Dashboard() {
                   className="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent"
                   placeholder="Leave blank to keep current"
                 />
+              </div>
+
+              <div className="pt-2 border-t border-white/5"></div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <Github className="w-4 h-4 text-slate-500" />
+                  Master GitHub Repo (Monorepo)
+                </label>
+                <input
+                  type="text"
+                  value={newMasterRepo}
+                  onChange={(e) => setNewMasterRepo(e.target.value)}
+                  className="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent"
+                  placeholder="e.g. ArtRuntime/alex-aur-packages"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Pacman requests will be redirected to the latest release of this repository.
+                </p>
               </div>
 
               <div className="pt-4 flex gap-3">

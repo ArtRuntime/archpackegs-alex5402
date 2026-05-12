@@ -9,29 +9,19 @@ export async function GET(req: Request, { params }: { params: { path: string[] }
     return new NextResponse("Bad Request", { status: 400 });
   }
 
-  // Hardcoded central database location for now (from android-studio-alex builder)
-  if (filename.startsWith('alex-repo.db') || filename.startsWith('alex-repo.files')) {
-    return NextResponse.redirect(`https://github.com/ArtRuntime/android-studio-alex/releases/latest/download/${filename}`, 302);
-  }
-
+  let masterRepo = 'ArtRuntime/alex-aur-packages';
+  
   try {
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME || 'alex-aur-packages');
-    
-    // Dynamically find which package this file belongs to
-    const packages = await db.collection('packages').find({ status: 'active' }).toArray();
-    
-    for (const pkg of packages) {
-      if (filename.startsWith(pkg.name + '-')) {
-        const version = pkg.version;
-        // Redirect to the exact release on the target GitHub repo!
-        return NextResponse.redirect(`https://github.com/${pkg.githubRepo}/releases/download/v${version}/${filename}`, 302);
-      }
+    const adminUser = await db.collection('users').findOne({});
+    if (adminUser && adminUser.masterRepo) {
+      masterRepo = adminUser.masterRepo;
     }
   } catch (e) {
-    console.error("Failed to query DB for package routing");
+    console.error("Failed to fetch master repo from DB", e);
   }
 
-  // Generic fallback if not recognized
-  return new NextResponse("Package router could not determine the source repository.", { status: 404 });
+  // Redirect directly to the 'latest' rolling release tag of the master monorepo
+  return NextResponse.redirect(`https://github.com/${masterRepo}/releases/download/latest/${filename}`, 302);
 }

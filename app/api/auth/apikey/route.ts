@@ -26,7 +26,8 @@ export async function GET(req: Request) {
       success: true, 
       hasKey: !!apiKey,
       maskedKey,
-      fullKey: apiKey
+      fullKey: apiKey,
+      masterRepo: adminUser.masterRepo || ''
     });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to fetch API key' }, { status: 500 });
