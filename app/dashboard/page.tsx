@@ -526,6 +526,34 @@ export default function Dashboard() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <Activity className="w-4 h-4 text-slate-500" />
+                  Webhook Sync URL
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={typeof window !== 'undefined' ? `${window.location.origin}/api/webhook/sync` : ''}
+                    className="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-slate-400 font-mono text-sm focus:outline-none select-all cursor-text"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/api/webhook/sync`);
+                      setAlertModal({ isOpen: true, title: 'Copied', message: 'Webhook URL copied to clipboard!', type: 'success' });
+                    }}
+                    className="bg-white/10 hover:bg-white/20 p-2.5 rounded-lg text-white transition-colors flex-shrink-0"
+                    title="Copy Webhook URL"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-white/5"></div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <User className="w-4 h-4 text-slate-500" />
                   New Username (Optional)
                 </label>
