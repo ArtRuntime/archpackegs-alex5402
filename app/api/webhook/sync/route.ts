@@ -9,37 +9,20 @@ export async function POST(req: Request) {
     }
 
     const providedKey = authHeader.substring(7);
-    
+
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME || 'alex-aur-packages');
-    
+
     // Authenticate using the admin user's API key
     const adminUser = await db.collection('users').findOne({});
     if (!adminUser || !adminUser.webhookApiKey || adminUser.webhookApiKey !== providedKey) {
       return NextResponse.json({ success: false, error: 'Invalid API Key' }, { status: 401 });
     }
 
-    // Get the githubRepo from the request body
-    let githubRepo = '';
-    try {
-      const body = await req.json();
-      githubRepo = body.githubRepo;
-    } catch (e) {
-      return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
-    }
+    const masterRepo = adminUser.masterRepo || 'ArtRuntime/alex-repo-packegs';
 
-    if (!githubRepo) {
-      return NextResponse.json({ success: false, error: 'githubRepo is required in the request body' }, { status: 400 });
-    }
-
-    // Find the package linked to this repo
-    const pkg = await db.collection('packages').findOne({ githubRepo: githubRepo });
-    if (!pkg) {
-      return NextResponse.json({ success: false, error: `No tracked package found for repository: ${githubRepo}` }, { status: 404 });
-    }
-
-    // === Core Sync Logic (Replicated from /api/packages/sync) ===
-    const ghResponse = await fetch(`https://api.github.com/repos/${pkg.githubRepo}/releases/latest`, {
+    // === Core alex-repo Sync Logic ===
+    const ghResponse = await fetch(`https://api.github.com/repos/${masterRepo}/releases/tags/latest`, {
       headers: {
         'User-Agent': 'Custom-Arch-Mirror',
         'Accept': 'application/vnd.github.v3+json'
@@ -47,55 +30,78 @@ export async function POST(req: Request) {
     });
 
     if (!ghResponse.ok) {
-      if (ghResponse.status === 404) {
-        return NextResponse.json({ success: false, error: 'No releases found on the target GitHub repository.' }, { status: 404 });
-      }
-      return NextResponse.json({ success: false, error: 'Failed to contact GitHub API.' }, { status: 500 });
+      return NextResponse.json({ success: false, error: `Failed to contact GitHub API for ${masterRepo}.` }, { status: 500 });
     }
 
     const releaseData = await ghResponse.json();
+
+    // 1. Fetch versions.json
+    const versionsAsset = (releaseData.assets || []).find((a: any) => a.name === 'versions.json');
+    let versions: Record<string, string> = {};
+    let fallbackAssets: Record<string, number> = {};
     
-    let newVersion = releaseData.tag_name;
-    if (newVersion.startsWith('v')) {
-      newVersion = newVersion.substring(1);
+    if (versionsAsset) {
+      const vRes = await fetch(versionsAsset.browser_download_url);
+      if (vRes.ok) {
+        const parsed = await vRes.json();
+        fallbackAssets = parsed.assets || {};
+        delete parsed.assets;
+        versions = parsed;
+      }
     }
 
-    let assetsMap = new Map();
-    (releaseData.assets || []).forEach((asset: any) => {
-      assetsMap.set(asset.name, asset.size);
-    });
+    // 2. Map all assets from GitHub API
+    const ghAssets = releaseData.assets || [];
 
-    if (releaseData.body) {
-      const bodyText = releaseData.body;
-      const regex = /\|\s*`([^`]+)`\s*\|\s*(\d+)\s*\|\s*`[^`]+`\s*\|/g;
-      let match;
-      while ((match = regex.exec(bodyText)) !== null) {
-        const name = match[1];
-        const size = parseInt(match[2], 10);
-        if (!assetsMap.has(name)) {
-          assetsMap.set(name, size);
+    // 3. Extract Database Files
+    const dbFileNames = ['alex-repo.db', 'alex-repo.db.tar.gz', 'alex-repo.files', 'alex-repo.files.tar.gz'];
+    const dbAssets = dbFileNames.map(name => {
+      const ghAsset = ghAssets.find((a: any) => a.name === name);
+      const size = ghAsset ? ghAsset.size : (fallbackAssets[name] || 0);
+      return { name, size };
+    }).filter(a => a.size > 0);
+
+    // 4. Upsert every package into the database
+    let syncedCount = 0;
+    for (const [pkgName, pkgVersion] of Object.entries(versions)) {
+      
+      const pkgAssets = ghAssets
+        .filter((a: any) => a.name.startsWith(pkgName) && a.name.includes('.pkg.tar.zst'))
+        .map((a: any) => ({ name: a.name, size: a.size }));
+
+      if (pkgAssets.length === 0) {
+        const pkgFileName = `${pkgName}-${pkgVersion}-1-x86_64.pkg.tar.zst`;
+        const sigFileName = `${pkgFileName}.sig`;
+        
+        if (fallbackAssets[pkgFileName]) {
+          pkgAssets.push({ name: pkgFileName, size: fallbackAssets[pkgFileName] });
+        }
+        if (fallbackAssets[sigFileName]) {
+          pkgAssets.push({ name: sigFileName, size: fallbackAssets[sigFileName] });
         }
       }
+
+      const combinedAssets = [...pkgAssets, ...dbAssets];
+
+      await db.collection('packages').updateOne(
+        { name: pkgName },
+        { 
+          $set: { 
+            name: pkgName,
+            version: pkgVersion, 
+            status: 'active',
+            lastBuilt: releaseData.published_at,
+            assets: combinedAssets
+          } 
+        },
+        { upsert: true }
+      );
+      syncedCount++;
     }
 
-    const assets = Array.from(assetsMap.entries()).map(([name, size]) => ({ name, size }));
-
-    // Update the database
-    await db.collection('packages').updateOne(
-      { _id: pkg._id },
-      { 
-        $set: { 
-          version: newVersion, 
-          status: 'active',
-          lastBuilt: releaseData.published_at,
-          assets: assets
-        } 
-      }
-    );
-
-    return NextResponse.json({ 
-      success: true, 
-      message: `Successfully synced ${pkg.name} to version ${newVersion}`
+    return NextResponse.json({
+      success: true,
+      message: `Successfully synced ${syncedCount} packages from the alex-repo.`
     });
 
   } catch (error) {

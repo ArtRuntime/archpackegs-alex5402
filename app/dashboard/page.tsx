@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Package, Plus, Activity, Github, Settings, LogOut, CheckCircle2, Clock, Lock, User, RefreshCw, Key, Copy, AlertTriangle, XCircle } from 'lucide-react';
+import { Package, Plus, Activity, Github, Settings, LogOut, CheckCircle2, Clock, Lock, User, RefreshCw, Key, Copy, AlertTriangle, XCircle, Search, Server } from 'lucide-react';
 
 type Pkg = {
   _id: string;
@@ -13,10 +13,8 @@ type Pkg = {
 };
 
 export default function Dashboard() {
-  const [packages, setPackages] = useState<Pkg[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newPkgName, setNewPkgName] = useState('');
-  const [newPkgRepo, setNewPkgRepo] = useState('');
+  const [packages, setPackages] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [syncingId, setSyncingId] = useState<string | null>(null);
 
   // Custom Modals State
@@ -34,7 +32,7 @@ export default function Dashboard() {
   const [settingsSuccess, setSettingsSuccess] = useState('');
 
   // API Key State
-  const [apiKeyData, setApiKeyData] = useState<{hasKey: boolean, maskedKey: string | null, fullKey: string | null}>({hasKey: false, maskedKey: null, fullKey: null});
+  const [apiKeyData, setApiKeyData] = useState<{ hasKey: boolean, maskedKey: string | null, fullKey: string | null }>({ hasKey: false, maskedKey: null, fullKey: null });
   const [showFullApiKey, setShowFullApiKey] = useState<string | null>(null);
   const [apiKeyLoading, setApiKeyLoading] = useState(false);
 
@@ -48,7 +46,7 @@ export default function Dashboard() {
         if (data.masterRepo) {
           setNewMasterRepo(data.masterRepo);
         } else {
-          setNewMasterRepo('ArtRuntime/alex-aur-packages');
+          setNewMasterRepo('ArtRuntime/alex-repo-packegs');
         }
       }
     } catch (e) {
@@ -100,41 +98,17 @@ export default function Dashboard() {
       });
   }, []);
 
-  const handleAddPackage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const res = await fetch('/api/packages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newPkgName, githubRepo: newPkgRepo }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      setPackages([...packages, data.data]);
-      setIsModalOpen(false);
-      setNewPkgName('');
-      setNewPkgRepo('');
-      setAlertModal({ isOpen: true, title: 'Success', message: 'Package added successfully!', type: 'success' });
-    } else {
-      setAlertModal({ isOpen: true, title: 'Error', message: data.error || 'Failed to add package.', type: 'error' });
-    }
-  };
-
-  const handleSync = async (pkgId: string) => {
-    setSyncingId(pkgId);
+  const handleFullSync = async () => {
+    setSyncingId('full-sync');
     try {
       const res = await fetch('/api/packages/sync', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packageId: pkgId }),
       });
       const data = await res.json();
-      
+
       if (res.ok && data.success) {
-        setPackages(packages.map(p => 
-          p._id === pkgId 
-            ? { ...p, version: data.data.version, status: data.data.status, lastBuilt: data.data.lastBuilt } 
-            : p
-        ));
+        setPackages(data.data);
+        setAlertModal({ isOpen: true, title: 'Sync Successful', message: data.message, type: 'success' });
       } else {
         setAlertModal({ isOpen: true, title: 'Sync Failed', message: data.error || 'Failed to sync with GitHub.', type: 'error' });
       }
@@ -158,7 +132,7 @@ export default function Dashboard() {
         body: JSON.stringify({ currentPassword, newUsername, newPassword, newMasterRepo }),
       });
       const data = await res.json();
-      
+
       if (res.ok && data.success) {
         setSettingsSuccess(data.message);
         setCurrentPassword('');
@@ -292,128 +266,93 @@ export default function Dashboard() {
 
         <div className="glass-panel rounded-2xl overflow-hidden">
           <div className="p-6 border-b border-white/5 flex justify-between items-center bg-surface/30">
-            <h2 className="text-lg font-semibold">Repository Packages</h2>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-accent hover:bg-accent/90 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              Add Package
-            </button>
+            <div className="flex items-center gap-4">
+              <h2 className="text-lg font-semibold whitespace-nowrap">Repository Packages</h2>
+              <div className="relative max-w-xs w-full">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="Search packages..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-background border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleFullSync}
+                disabled={syncingId === 'full-sync'}
+                className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-lg shadow-primary/25 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${syncingId === 'full-sync' ? 'animate-spin' : ''}`} />
+                {syncingId === 'full-sync' ? 'Syncing...' : 'Sync Dashboard'}
+              </button>
+              <button
+                onClick={openSettings}
+                className="bg-white/5 hover:bg-white/10 text-white p-2 rounded-lg transition-colors border border-white/10"
+                title="Dashboard Settings"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-surface/50 text-sm font-medium text-slate-400">
-                  <th className="px-6 py-4">Package Name</th>
-                  <th className="px-6 py-4">Version</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">GitHub Repo</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5 text-sm">
-                {packages.map((pkg) => (
-                  <tr key={pkg._id} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="px-6 py-4 font-medium text-white flex items-center gap-3">
-                      <div className="w-8 h-8 rounded bg-surface border border-white/10 flex items-center justify-center">
-                        <Package className="w-4 h-4 text-slate-400" />
-                      </div>
-                      {pkg.name}
-                    </td>
-                    <td className="px-6 py-4 font-mono text-slate-300">{pkg.version}</td>
-                    <td className="px-6 py-4">
-                      {pkg.status === 'active' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                          <Clock className="w-3.5 h-3.5" /> Pending
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-slate-400">{pkg.githubRepo || 'N/A'}</td>
-                    <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => handleSync(pkg._id)}
-                        disabled={syncingId === pkg._id}
-                        className="text-primary hover:text-primary/80 font-medium transition-colors flex items-center gap-2 ml-auto disabled:opacity-50"
-                      >
-                        {syncingId === pkg._id ? (
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <RefreshCw className="w-4 h-4" />
-                        )}
-                        Sync Now
-                      </button>
-                    </td>
+
+          <div className="bg-background border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-white/5 border-b border-white/10">
+                    <th className="p-4 font-medium text-slate-300">Package</th>
+                    <th className="p-4 font-medium text-slate-300">Version</th>
+                    <th className="p-4 font-medium text-slate-300">Status</th>
+                    <th className="p-4 font-medium text-slate-300">Last Built</th>
                   </tr>
-                ))}
-                {packages.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
-                      No packages tracked yet. Click "Add Package" to start.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {packages.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="p-8 text-center text-slate-500">
+                        {packages.length === 0
+                          ? 'No packages found. Click "Sync Dashboard" to load packages from the alex-repo.'
+                          : 'No packages match your search.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    packages.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map((pkg) => (
+                      <tr key={pkg._id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors group">
+                        <td className="p-4">
+                          <div className="font-medium text-white flex items-center gap-2">
+                            <Package className="w-4 h-4 text-primary" />
+                            {pkg.name}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <span className="bg-white/10 text-slate-300 px-2 py-1 rounded text-xs font-mono">
+                            {pkg.version || 'Unknown'}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center w-fit gap-1.5 ${pkg.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                            pkg.status === 'building' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                              'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                            }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${pkg.status === 'active' ? 'bg-emerald-400' : pkg.status === 'building' ? 'bg-amber-400 animate-pulse' : 'bg-slate-400'}`}></span>
+                            {pkg.status}
+                          </span>
+                        </td>
+                        <td className="p-4 text-slate-400 text-sm">
+                          {pkg.lastBuilt ? new Date(pkg.lastBuilt).toLocaleDateString() : 'Never'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </main>
-
-      {/* Add Package Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-surface border border-white/10 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-white/5">
-              <h3 className="text-xl font-semibold">Track New Package</h3>
-              <p className="text-sm text-slate-400 mt-1">Add an AUR package to your custom mirror.</p>
-            </div>
-            <form onSubmit={handleAddPackage} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">AUR Package Name</label>
-                <input
-                  type="text"
-                  required
-                  value={newPkgName}
-                  onChange={(e) => setNewPkgName(e.target.value)}
-                  placeholder="e.g., google-chrome"
-                  className="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">Target GitHub Repo</label>
-                <input
-                  type="text"
-                  required
-                  value={newPkgRepo}
-                  onChange={(e) => setNewPkgRepo(e.target.value)}
-                  placeholder="honeypie112/android-studio-alex"
-                  className="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent"
-                />
-              </div>
-              <div className="pt-4 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 bg-white/5 hover:bg-white/10 text-white px-4 py-2.5 rounded-lg font-medium transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-accent hover:bg-accent/90 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-lg shadow-accent/25"
-                >
-                  Track Package
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Settings Modal */}
       {isSettingsOpen && (
@@ -439,7 +378,7 @@ export default function Dashboard() {
                   {settingsSuccess}
                 </div>
               )}
-              
+
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <Lock className="w-4 h-4 text-slate-500" />
@@ -472,8 +411,8 @@ export default function Dashboard() {
                         <code className="text-xs text-white bg-[#1e1e2e] p-2 rounded flex-1 overflow-x-auto select-all">
                           {showFullApiKey}
                         </code>
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => {
                             navigator.clipboard.writeText(showFullApiKey);
                             setAlertModal({ isOpen: true, title: 'Copied', message: 'API Key copied to clipboard!', type: 'success' });
@@ -489,8 +428,8 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <code className="text-xs text-slate-400 font-mono tracking-widest">{apiKeyData.maskedKey}</code>
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => {
                             if (apiKeyData.fullKey) {
                               navigator.clipboard.writeText(apiKeyData.fullKey);
@@ -503,8 +442,8 @@ export default function Dashboard() {
                           <Copy className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={handleGenerateApiKeyRequest}
                         disabled={apiKeyLoading}
                         className="text-xs text-rose-400 hover:text-rose-300 transition-colors disabled:opacity-50"
@@ -515,7 +454,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="flex flex-col items-center py-2 text-center">
                       <p className="text-xs text-slate-400 mb-3">No API Key generated yet.</p>
-                      <button 
+                      <button
                         type="button"
                         onClick={handleGenerateApiKeyRequest}
                         disabled={apiKeyLoading}
@@ -591,14 +530,14 @@ export default function Dashboard() {
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
                   <Github className="w-4 h-4 text-slate-500" />
-                  Master GitHub Repo (Monorepo)
+                  Master GitHub Repo (alex-repo)
                 </label>
                 <input
                   type="text"
                   value={newMasterRepo}
                   onChange={(e) => setNewMasterRepo(e.target.value)}
                   className="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent"
-                  placeholder="e.g. ArtRuntime/alex-aur-packages"
+                  placeholder="e.g. ArtRuntime/alex-repo-packegs"
                 />
                 <p className="text-xs text-slate-500 mt-1">
                   Pacman requests will be redirected to the latest release of this repository.
